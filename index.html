@@ -39,12 +39,11 @@
         function initClient() {
             // Initialize the API client with the discovery document
             gapi.client.init({
-                apiKey: 'f9742a2e58f576c5bb369dcdc4cce1d1320a1345', // Replace with your API key
+                apiKey: 'f9742a2e58f576c5bb369dcdc4cce1d1320a1345	', // Replace with your API key
                 discoveryDocs: ["https://sheets.googleapis.com/$discovery/rest?version=v4"],
             }).then(function () {
                 // Call functions to handle the API operations (e.g., reading/writing data)
-                // For example, to write data:
-                // writeDataToSheet();
+                loadStoredData(); // Load data on page load
             });
         }
 
@@ -73,6 +72,44 @@
             });
         }
 
+        function loadStoredData() {
+            // Load data from Google Sheets
+            gapi.client.sheets.spreadsheets.values.get({
+                spreadsheetId: spreadsheetId,
+                range: 'Sheet1!A:B',
+            }).then(function (response) {
+                const values = response.result.values;
+                if (values && values.length > 0) {
+                    // Assuming the data is in the format [name, code]
+                    dataStore = Object.fromEntries(values);
+                }
+            }, function (reason) {
+                console.error('Error: ' + reason.result.error.message);
+            });
+        }
+
+        function saveDataToGoogleSheets() {
+            // Convert dataStore object to an array of arrays
+            const values = Object.entries(dataStore);
+
+            // Write data to Google Sheets
+            gapi.client.sheets.spreadsheets.values.update({
+                spreadsheetId: spreadsheetId,
+                range: 'Sheet1!A:B',
+                valueInputOption: 'RAW',
+                resource: { values: values },
+            }).then(function (response) {
+                console.log(response);
+            }, function (reason) {
+                console.error('Error: ' + reason.result.error.message);
+            });
+        }
+
+        function saveDataToLocalStorage() {
+            // Optionally, you can still save data to local storage if needed
+            localStorage.setItem('dataStore', JSON.stringify(dataStore));
+        }
+
         document.addEventListener('DOMContentLoaded', function () {
             // Your existing event listeners...
             // ...
@@ -96,31 +133,14 @@
             document.getElementById('searchButton').addEventListener('click', function () {
                 search();
             });
-
-            // Load stored data on page load
-            loadStoredData();
         });
 
-        // Simple data store object
         let dataStore = {};
-        const codeLimit = 4; // Limit of codes for each ΦΑΤΝΩΜΑ
-
-        function loadStoredData() {
-            // Load data from local storage
-            const storedData = JSON.parse(localStorage.getItem('dataStore')) || {};
-            dataStore = storedData;
-        }
-
-        function saveDataToLocalStorage() {
-            // Save data to local storage
-            localStorage.setItem('dataStore', JSON.stringify(dataStore));
-        }
+        const codeLimit = 4;
 
         function goToRegistration() {
             document.getElementById('page1').style.display = 'none';
             document.getElementById('page2').style.display = 'block';
-
-            // Reset input fields
             document.getElementById('nameInput').value = '';
             document.getElementById('codeInput').value = '';
         }
@@ -128,11 +148,7 @@
         function goToSearch() {
             document.getElementById('page1').style.display = 'none';
             document.getElementById('page3').style.display = 'block';
-
-            // Reset input fields
             document.getElementById('searchCodeInput').value = '';
-
-            // Clear previous search result
             document.getElementById('searchResult').innerText = '';
         }
 
@@ -146,18 +162,15 @@
             const name = document.getElementById('nameInput').value;
             const code = document.getElementById('codeInput').value;
 
-            // Check if both fields are filled before proceeding
             if (!name || !code) {
                 alert('Both ΦΑΤΝΩΜΑ and CODE must be filled to complete registration.');
                 return;
             }
 
-            // Check code limit for each ΦΑΤΝΩΜΑ
             if (!dataStore[name]) {
                 dataStore[name] = [];
             }
 
-            // Check if the code is already associated with the ΦΑΤΝΩΜΑ
             if (dataStore[name].includes(code)) {
                 alert(`Code ${code} already associated with ΦΑΤΝΩΜΑ ${name}.`);
                 return;
@@ -168,37 +181,24 @@
                 return;
             }
 
-            // Store the relation between name and code in the data store
             dataStore[name].push(code);
-
-            // Save data to local storage
             saveDataToLocalStorage();
-
-            // Save data to Google Sheets
             writeDataToSheet(name, code);
-
             alert(`Registration complete:\nΦΑΤΝΩΜΑ: ${name}\nCODE: ${code}`);
-
-            // Reset input fields
             document.getElementById('nameInput').value = '';
             document.getElementById('codeInput').value = '';
-
             goToPage1();
         }
 
         function search() {
             const searchCode = document.getElementById('searchCodeInput').value;
 
-            // Check if the search code field is filled before proceeding
             if (!searchCode) {
                 alert('Enter a CODE to perform the search.');
                 return;
             }
 
-            // Retrieve the name associated with the code from the data store
             const resultText = findNameByCode(searchCode);
-
-            // Display the result in the searchResult div
             document.getElementById('searchResult').innerText = `Result for CODE ${searchCode}:\nΦΑΤΝΩΜΑ: ${resultText || 'Not found'}`;
         }
 
@@ -215,30 +215,23 @@
             const searchCode = document.getElementById('searchCodeInput').value;
             const name = findNameByCode(searchCode);
 
-            // Check if the search code field is filled before proceeding
             if (!name || !searchCode) {
                 alert('Enter a valid ΦΑΤΝΩΜΑ and CODE to clear.');
                 return;
             }
 
-            // Check if the specified code exists for the ΦΑΤΝΩΜΑ
             const codeIndex = dataStore[name].indexOf(searchCode);
             if (codeIndex !== -1) {
-                // Remove the specified code from the ΦΑΤΝΩΜΑ
                 dataStore[name].splice(codeIndex, 1);
-
-                // For simplicity, let's just display an alert
                 alert(`Code ${searchCode} cleared for ΦΑΤΝΩΜΑ: ${name}`);
             } else {
                 alert(`Code ${searchCode} not found for ΦΑΤΝΩΜΑ: ${name}`);
             }
 
-            // Allow a new code to be input for the ΦΑΤΝΩΜΑ
             if (dataStore[name].length < codeLimit) {
                 document.getElementById('codeInput').value = '';
             }
 
-            // Save data to local storage after clearing code
             saveDataToLocalStorage();
         }
     </script>
