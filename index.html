@@ -13,6 +13,7 @@
         <div id="page1">
             <button id="registrationButton">ΚΑΤΑΧΩΡΗΣΗ</button>
             <button id="searchButton">ΑΝΑΖΗΤΗΣΗ</button>
+            <button id="viewButton">ΠΡΟΒΟΛΗ</button>
         </div>
 
         <div id="page2" style="display: none;">
@@ -28,6 +29,11 @@
             <button id="clearCodeButton">CLEAR CODE</button>
             <div id="searchResult"></div>
             <button id="returnButton2">RETURN</button>
+        </div>
+
+        <div id="relationsContainer" style="display: none;">
+            <button id="returnButton3">RETURN</button>
+            <div id="relationsList"></div>
         </div>
     </div>
 
@@ -45,7 +51,6 @@
             measurementId: "G-T5PQJM74WJ"
         };
 
-        // Initialize Firebase
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
@@ -53,17 +58,17 @@
         const codeLimit = 4;
 
         document.addEventListener('DOMContentLoaded', async function () {
-            // Call the function to load data from Firebase
             await loadStoredData();
 
-            // Attach event listeners to buttons
             document.getElementById('registrationButton').addEventListener('click', goToRegistration);
             document.getElementById('searchButton').addEventListener('click', goToSearch);
+            document.getElementById('viewButton').addEventListener('click', viewRelations);
             document.getElementById('completeButton').addEventListener('click', completeRegistration);
             document.getElementById('returnButton1').addEventListener('click', goToPage1);
             document.getElementById('findButton').addEventListener('click', search);
             document.getElementById('clearCodeButton').addEventListener('click', clearCode);
             document.getElementById('returnButton2').addEventListener('click', goToPage1);
+            document.getElementById('returnButton3').addEventListener('click', returnToPage1);
         });
 
         function goToRegistration() {
@@ -83,6 +88,7 @@
         function goToPage1() {
             document.getElementById('page2').style.display = 'none';
             document.getElementById('page3').style.display = 'none';
+            document.getElementById('relationsContainer').style.display = 'none';
             document.getElementById('page1').style.display = 'block';
         }
 
@@ -151,6 +157,9 @@
             if (codeIndex !== -1) {
                 dataStore[name].splice(codeIndex, 1);
                 alert(`Code ${searchCode} cleared for ΦΑΤΝΩΜΑ: ${name}`);
+
+                // Update the UI to reflect the removed ΦΑΤΝΩΜΑ
+                updateRelationsList();
             } else {
                 alert(`Code ${searchCode} not found for ΦΑΤΝΩΜΑ: ${name}`);
             }
@@ -158,23 +167,60 @@
             await saveDataToFirebase();
         }
 
+        function updateRelationsList() {
+            const relationsList = document.getElementById('relationsList');
+            const sortedRelations = getSortedRelations();
+
+            // Filter out ΦΑΤΝΩΜΑ entries without associated codes
+            const filteredRelations = sortedRelations.filter(relation => relation.codes.length > 0);
+
+            let html = '<ul>';
+            filteredRelations.forEach(relation => {
+                html += `<li>ΦΑΤΝΩΜΑ: ${relation.name}, CODEs: ${relation.codes.join(', ')}</li>`;
+            });
+            html += '</ul>';
+
+            relationsList.innerHTML = html;
+        }
+
         async function loadStoredData() {
-            // Load data from Firebase
             const docRef = doc(db, "registrations", "dataStore");
             const docSnap = await getDoc(docRef);
             if (docSnap.exists()) {
                 const data = docSnap.data();
                 if (data) {
-                    // Assuming the data is in the format { name: [code1, code2, ...], ... }
                     dataStore = data.dataStore;
                 }
             }
         }
 
         async function saveDataToFirebase() {
-            // Write data to Firebase
             const dataStoreDocRef = doc(db, "registrations", "dataStore");
             await setDoc(dataStoreDocRef, { dataStore });
+        }
+
+        function viewRelations() {
+            updateRelationsList();
+
+            document.getElementById('page1').style.display = 'none';
+            document.getElementById('relationsContainer').style.display = 'block';
+        }
+
+        function getSortedRelations() {
+            const sortedRelations = [];
+            for (const name in dataStore) {
+                const codes = dataStore[name];
+                sortedRelations.push({ name, codes });
+            }
+
+            sortedRelations.sort((a, b) => parseInt(a.name) - parseInt(b.name));
+
+            return sortedRelations;
+        }
+
+        function returnToPage1() {
+            document.getElementById('relationsContainer').style.display = 'none';
+            document.getElementById('page1').style.display = 'block';
         }
     </script>
 </body>
